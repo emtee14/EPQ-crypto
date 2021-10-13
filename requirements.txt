@@ -1,0 +1,2 @@
+pycryptodome==3.11.0
+six==1.16.0
