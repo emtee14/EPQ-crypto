@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from typing import Dict
+from typing import Dict, NoReturn
 
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
@@ -8,7 +8,7 @@ from Crypto.Signature.pkcs1_15 import PKCS115_SigScheme
 
 """
 DB schema
-Block db - all blocks along with their data except transactions (block_number, hash, nonce, prev_block_hash, timestamp)
+Block db - all blocks along with their data except transactions (block_number, hash, nonce, prev_hash, timestamp)
 Transation DB - contains all transactions along with the block they are asociated with (block_hash, sender, reciever, amount, signature, timestamp)
 """
 
@@ -73,7 +73,6 @@ class Transaction():
         self.sender = self._tran_dict["sender"]
         self.reciever = self._tran_dict["reciever"]
         self.amount = self._tran_dict["amount"]
-        self.timestamp = self._tran_dict["timestamp"]
         if self.signed:
             self.signature = self._tran_dict["signature"]
 
@@ -81,31 +80,48 @@ class Transaction():
 class Block():
     def __init__(self, block_dict, mined: bool = True) -> None:
         self.henry = "Smells"
-        self.block_dict = block_dict
         self.mined = mined
         self.valid = False
-        self.import_block()
+        self.import_block(block_dict)
 
-    def import_block(self):
-        self.number = self.block_dict["block_number"]
+    def import_block(self, block_dict):
+        self.number = block_dict["block_number"]
         if self.mined:
-            self.hash = self.block_dict["hash"]
-            self.nonce = self.block_dict["nonce"]
-        self.prev_block = self.block_dict["prev_block_hash"]
-        self.timestamp = self.block_dict["timestamp"]
+            self.hash = block_dict["hash"]
+            self.nonce = block_dict["nonce"]
+        self.prev_block = block_dict["prev_hash"]
+        self.timestamp = block_dict["timestamp"]
         self.transactions = []
-        for transaction in self.block_dict["transactions"]:
+        for transaction in block_dict["transactions"]:
             tran_obj = Transaction(transaction, signed=True)
             tran_obj.verify_signature()
             if tran_obj.valid:
                 self.transactions.append(tran_obj)
             else:
                 print("Fatal error somewhere invalid transaction saved to blockchain")
+    @property
+    def block_dict(self):
+        block = {
+            "block_number": self.number,
+            "prev_hash": self.prev_block,
+            "timestamp": self.timestamp,
+            "transactions": []
+        }
+        for i in self.transactions.copy():
+            block["transactions"].append(i.tran_dict)
+        if self.mined:
+            block["hash"] = self.hash
+            block["nonce"] = self.nonce
+        for key, value in sorted(block.items()):
+            block[key] = value
+        return block
 
     def mine_block(self):
         nonce = 0
-        while self.mined == False:
-            temp_block = self.block_dict.copy()
+        temp_block = self.block_dict.copy()
+        temp_block.pop("hash", None)
+        block_string = ""
+        while True:
             temp_block["nonce"] = nonce
             block_string = json.dumps(temp_block)
             block_hash = SHA256.new(block_string.encode("UTF-8")).hexdigest()
@@ -113,19 +129,16 @@ class Block():
                 self.mined = True
                 self.hash = block_hash
                 self.nonce = nonce
-                self.block_dict["hash"] = block_hash
+                break
             nonce +=1
             
 
     def verify_block(self):
         block_no_hash = self.block_dict.copy()
-        block_no_hash.pop("hash")
-        block_no_hash["nonce"] = self.nonce
+        block_no_hash.pop("hash", None)
         block_string = json.dumps(block_no_hash)
         block_hash = SHA256.new(block_string.encode("UTF-8")).hexdigest()
         if block_hash == self.hash:
             self.valid = True
         else:
             self.valid = False
-
-
