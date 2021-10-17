@@ -1,1 +1,1 @@
-# EPQ-crypto
+# EPQ Cryptocurrency Artefact
