@@ -1,13 +1,15 @@
 import socket
 import json
 from queue import Queue
-from threading import Thread, Event
+from threading import Event
 import time
+
 
 def connect_server(host: str, port: int) -> socket.socket:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
     return (s, host)
+
 
 class socketObject():
     def __init__(self, conn: socket.socket, addr: str) -> None:
@@ -37,10 +39,11 @@ class socketObject():
         serialized_msg = self.conn.recv(int(length, base=16)).decode()
         msg = json.loads(serialized_msg)
         return msg
-        
+
 
 class socketHandler():
-    def __init__(self, conn: socketObject, main_queue: Queue, peer_list: Queue, quitEvent, client=False) -> None:
+    def __init__(self, conn: socketObject, main_queue: Queue,
+                 peer_list: Queue, quitEvent: Event, client=False) -> None:
         # if client is true it means this object was called by server
         self.client = client
         self.conn = conn
@@ -76,14 +79,4 @@ class socketHandler():
             msg_len = int(self.conn.recv(4).decode("UTF-8"), 16)
             msg_string = self.conn.recv(msg_len).decode("UTF-8")
             msg = json.loads(msg_string)
-            print(msg)
-
-if __name__ == "__main__":
-    quit_event = Event()
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 14605))
-        while not quit_event.isSet():
-            s.listen(1)
-            conn, addr = s.accept()
-            print("New Client")
-            new_conn = socketHandler(conn, addr, {}, quit_event, client=True)
+            return msg
