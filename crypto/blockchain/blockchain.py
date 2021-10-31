@@ -4,73 +4,7 @@ from typing import Dict
 
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
-from Crypto.Signature.pkcs1_15 import PKCS115_SigScheme
-
-
-class Transaction():
-    def __init__(self, transcation_dict, signed=False) -> None:
-        self._tran_dict = transcation_dict
-        self.signed = signed
-        self.import_tran()
-        self.valid = False
-        if signed:
-            self.signature = transcation_dict["signature"]
-            self._tran_dict.pop("signature")
-            self.verify_signature()
-
-    def sign(self, priv_key: str) -> None:
-        """Takes in private key and signs the transaction to prove it was
-           sent by the owner of the account
-
-        :param priv_key: Private key in PEM format
-        :type priv_key: str
-        """
-        if not self.signed:
-            transaction_string = json.dumps(self._tran_dict)
-            priv_key = RSA.import_key(priv_key)
-            signer = PKCS115_SigScheme(priv_key)
-            tran_hash = SHA256.new(transaction_string.encode("UTF-8"))
-            signature = signer.sign(tran_hash)
-            self.signature = signature.hex()
-            self.signed = True
-
-    def verify_signature(self) -> bool:
-        """Checks if the signature of the transaction is valid
-
-        :return: Returns True if it is a valid signature and False if not
-        :rtype: bool
-        """
-        transaction_string = json.dumps(self._tran_dict)
-        tran_hash = SHA256.new(transaction_string.encode("UTF-8"))
-        pub_key = RSA.import_key(self._tran_dict["sender"])
-        verifier = PKCS115_SigScheme(pub_key)
-        try:
-            verifier.verify(tran_hash, bytes.fromhex(self.signature))
-            self.valid = True
-        except ValueError:
-            self.valid = False
-
-    @property
-    def tran_dict(self) -> Dict:
-        """Returns a dict containing all the transaction infomation
-
-        :return: Dict containing all transaction info
-        :rtype: Dict
-        """
-        tran_dict = self._tran_dict.copy()
-        if self.signed:
-            tran_dict["signature"] = self.signature
-        return tran_dict
-
-    def import_tran(self) -> None:
-        """Creates parameters for all info in the transaction
-        """
-        self.sender = self._tran_dict["sender"]
-        self.receiver = self._tran_dict["receiver"]
-        self.amount = self._tran_dict["amount"]
-        if self.signed:
-            self.signature = self._tran_dict["signature"]
-
+from 
 
 class Block():
     def __init__(self, block_dict: Dict, mined: bool = True) -> None:
