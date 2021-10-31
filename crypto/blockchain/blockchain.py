@@ -4,7 +4,7 @@ from typing import Dict
 
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
-from 
+from .transaction import Transaction
 
 class Block():
     def __init__(self, block_dict: Dict, mined: bool = True) -> None:
