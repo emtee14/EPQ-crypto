@@ -1,8 +1,10 @@
 # EPQ Cryptocurrency Artefact
 
-## Transactions
 
-### SQL Schema
+## SQL Schema
+
+### Transactions
+
 - sender: str
 - receiver: str
 - value: int
@@ -12,9 +14,8 @@
 - nonce: int
 - parent_block: str
 
-## Blocks
+### Blocks
 
-### SQL Schema
 - hash: str
 - nonce: int
 - coinbase: str
