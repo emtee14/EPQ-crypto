@@ -14,6 +14,7 @@ class Transaction():
         self.value = value
         self.data = data
         self.fee = fee
+        self.required_value = fee + value
         self.signed = True if signature and nonce is not None else False
         self.signature = signature if self.signed else None
         self.nonce = nonce if self.signed else None

@@ -3,7 +3,7 @@ from typing import Dict, List
 
 from Crypto.Hash import SHA256
 
-from blockchain.transaction import Transaction
+from transaction import Transaction
 
 
 class Block():
@@ -15,7 +15,7 @@ class Block():
         self.timestamp = timestamp
         self.transactions = [Transaction(*x[:5], signature=x[5],
                                          nonce=x[6]) for x in transactions]
-        self.mined = True if block_hash & nonce & coinbase else False
+        self.mined = True if block_hash and nonce and coinbase else False
         if self.mined:
             self.hash = block_hash
             self.nonce = nonce
