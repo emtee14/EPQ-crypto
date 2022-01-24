@@ -22,7 +22,8 @@ class Node(threading.Thread):
         self.outbound = []
         self.connect_list = bootstrap
 
-        self.id = hashlib.sha256((str(host)+str(port)+str(time.time())).encode("UTF-8")).hexdigest()
+        self.id = hashlib.sha256((str(host)+str(port)+str(time.time())
+                                  ).encode("UTF-8")).hexdigest()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         self.message_recv = 0
@@ -71,7 +72,7 @@ class Node(threading.Thread):
                 print("Already connected to node")
                 return False
         try:
-            if self.max_connections == 0 or len(self.total_nodes) < self.max_connections:
+            if (self.max_connections == 0 or len(self.total_nodes) < self.max_connections):
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect((host, port))
 
@@ -105,7 +106,8 @@ class Node(threading.Thread):
             try:
                 conn, addr = self.sock.accept()
                 if self.max_connections == 0 or len(self.total_nodes) < self.max_connections:
-                    conn_thread = self.create_conn(conn, addr[0], addr[1], False)
+                    conn_thread = self.create_conn(conn, addr[0],
+                                                   addr[1], False)
                     conn_thread.start()
                     self.inbound.append(conn_thread)
                 else:
@@ -114,14 +116,12 @@ class Node(threading.Thread):
                 pass
             self.reconnect_nodes()
 
-        print("Stopping")
         for t in self.inbound:
             t.stop()
         for t in self.outbound:
             t.stop()
 
         time.sleep(1)
-
         for t in self.inbound:
             t.join()
         for t in self.outbound:

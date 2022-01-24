@@ -9,7 +9,7 @@ class Connection(threading.Thread):
         super(Connection, self).__init__()
         self.parent_proc = parent_proc
         self.stop = threading.Event()
-        self.client = client  # True if connection is client and connecting to another server
+        self.client = client  # True if connecting to another server
         self.sock = sock_obj
         self.uid = None
         self.host = host
