@@ -9,6 +9,7 @@ from Crypto.Signature.pkcs1_15 import PKCS115_SigScheme
 class Transaction():
     def __init__(self, sender: str, receiver: str, value: int, data: str,
                  fee: int, signature: str = False, nonce: int = False) -> None:
+        self.henry = self.luke = "smells"
         self.sender = sender
         self.receiver = receiver
         self.value = value
