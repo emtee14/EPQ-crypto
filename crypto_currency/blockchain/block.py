@@ -3,7 +3,7 @@ from typing import Dict, List
 
 from Crypto.Hash import SHA256
 
-from transaction import Transaction
+from blockchain.transaction import Transaction
 
 
 class Block():

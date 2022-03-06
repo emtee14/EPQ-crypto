@@ -1,22 +1,26 @@
+import json
 import sqlite3
+from typing import Dict
 
 from Crypto.PublicKey import RSA
 
-from block import Block
+from blockchain.block import Block
 
 
 class Blockchain():
-    def __init__(self, db="blockchain.db") -> None:
+    def __init__(self, log_func, db="blockchain.db") -> None:
         self.conn = sqlite3.connect(db)
         self.cur = self.conn.cursor()
         self.verify_db()
+        self.log = log_func
 
     def verify_db(self) -> None:
         """If tables do not exist in DB they will be created
         """
         self.cur.execute("""SELECT name FROM sqlite_master WHERE type='table'
-                            AND name='transactions' OR name='blocks';""")
-        if not (len(self.cur.fetchall()) == 2):
+                            AND name='transactions' OR name='blocks'
+                            OR name='mempool';""")
+        if not (len(self.cur.fetchall()) == 3):
             self.cur.execute("""CREATE TABLE blocks (hash VARCHAR(64),
                                 nonce INT, coinbase VARCHAR(2000),
                                 parent_block VARCHAR(64), timestamp INT);""")
@@ -25,6 +29,8 @@ class Blockchain():
                              data VARCHAR(256), fee INT,
                              signature VARCHAR(512), nonce INT,
                              parent_block VARCHAR(64));""")
+            self.cur.execute("""CREATE TABLE mempool
+                             (tran VARCHAR(10));""")
             self.conn.commit()
 
     def get_block(self, block_hash: str) -> Block:
@@ -47,17 +53,17 @@ class Blockchain():
                       block_tuple[0], block_tuple[1], block_tuple[2])
         return block
 
-    def get_balance(self, public_key: str) -> int:
+    def get_balance(self, public_key: str) -> float:
         """Returns account balance of a given account
 
         :param public_key: Public key to identify account
         :type public_key: str
         :return: Current balance
-        :rtype: int
+        :rtype: float
         """
-        public_key = RSA.import_key(public_key)
-        key_str = public_key.export_key().decode("UTF-8")
-        balance = 0
+        public_key = RSA.import_key(bytes.fromhex(public_key))
+        key_str = public_key.export_key("DER").hex()
+        balance = 0.0
         self.cur.execute("""SELECT sender, receiver, value, fee FROM transactions WHERE
                             sender = ? OR receiver = ?""",
                          (key_str, key_str,))
@@ -73,6 +79,27 @@ class Blockchain():
         coinbases = len(self.cur.fetchall())
         balance += coinbases*10
         return balance
+
+    def get_transactions(self, public_key: str) -> Dict:
+        public_key = RSA.import_key(bytes.fromhex(public_key))
+        key_str = public_key.export_key("DER").hex()
+        self.cur.execute("""SELECT * FROM transactions
+                         WHERE sender=? OR receiver = ?""",
+                         (key_str, key_str,))
+        transaction_tuples = self.cur.fetchall()
+        resp = {"account": key_str, "transactions": []}
+        for tran in transaction_tuples:
+            resp["transactions"].append({
+                "sender": tran[0],
+                "receiver": tran[1],
+                "value": tran[2],
+                "data": tran[3],
+                "fee": tran[4],
+                "signature": tran[5],
+                "nonce": tran[6],
+                "block": tran[7]
+            })
+        return resp
 
     def add_block(self, block: Block) -> None:
         """Validates block and all transactions contained within then adds it
@@ -91,6 +118,7 @@ class Blockchain():
             dupe_block = self.cur.fetchone()
             if dupe_block is not None:
                 raise ValueError("Block has already been mined and added")
+
             if genesis is True or block.parent_block == self.prev_hash:
                 for tran in block.transactions:
                     sender_bal = self.get_balance(tran.sender)
@@ -110,8 +138,9 @@ class Blockchain():
                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?);""",
                                      tran_tuple)
                 self.conn.commit()
+                self.log(f"New block added {block.hash}", "INFO")
             else:
-                raise ValueError("Invalid parent hash")
+                self.log("Invalid parent hash", "ERROR")
 
     @property
     def prev_hash(self) -> str:
@@ -142,40 +171,26 @@ class Blockchain():
             nonce = 0
         return nonce
 
+    @property
+    def mem_pool(self):
+        self.cur.execute("""SELECT * FROM mempool""")
+        tran_strings = self.cur.fetchall()
+        transactions = []
+        for i in tran_strings:
+            transactions.append(json.loads(i))
+        return transactions
 
-if __name__ == "__main__":
-    blockchain = Blockchain()
-    from block import Block
-    from miner import Miner
-    from transaction import Transaction
-    with open('./testing/priv-key1.pem', 'r') as f:
-        sender = RSA.import_key(f.read())
-    with open('./testing/priv-key2.pem', 'r') as f:
-        receiver = RSA.import_key(f.read())
-    import time
+    def add_to_mempool(self, transaction: Dict):
+        tran_str = json.dumps(transaction)
+        self.cur.execute("""SELECT * FROM mempool WHERE tran = ?""",
+                         (tran_str,))
+        if self.cur.fetchone() is None:
+            self.cur.execute("""INSERT INTO mempool (tran) VALUES (?);""",
+                             (tran_str,))
+            self.conn.commit()
+            return True
+        return False
 
-    genesis = Block("", time.time(), [])
-    block_miner = Miner(dict(genesis), "1",
-                        sender.public_key().exportKey().decode("UTF-8"),
-                        workers=4)
-    block_miner.mine_block()
-    validity = genesis.christen(block_miner.hash, block_miner.nonce,
-                                block_miner.miner_addr)
-    blockchain.add_block(genesis)
-
-    tran_obj = Transaction(sender.public_key().exportKey().decode("UTF-8"),
-                           receiver.public_key().exportKey().decode("UTF-8"),
-                           5, "", 5*0.05)
-    tran_obj.sign(sender.export_key().decode("UTF-8"),
-                  blockchain.get_tran_nonce(sender.public_key().exportKey().decode("UTF-8")))
-    transaction = tuple(tran_obj)
-
-    new_block = Block(blockchain.prev_hash, time.time(), [transaction])
-    block_miner = Miner(dict(new_block), "1", sender.public_key().exportKey().decode("UTF-8"))
-    block_miner.mine_block()
-    new_block.christen(block_miner.hash, block_miner.nonce,
-                       block_miner.miner_addr)
-    blockchain.add_block(new_block)
-    print(blockchain.get_balance(sender.public_key().exportKey().decode("UTF-8")))
-    print(blockchain.get_balance(receiver.public_key().exportKey().decode("UTF-8")))
-    print(blockchain.get_block(genesis.hash))
+    def flush_mempool(self):
+        self.cur.execute("DELETE FROM mempool;")
+        self.conn.commit()

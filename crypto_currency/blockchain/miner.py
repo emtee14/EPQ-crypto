@@ -51,7 +51,7 @@ class Miner():
         :param queue: Queue to submit result to
         :type queue: mp.Queue
         """
-        block_dict = self.block.copy()
+        block_dict = dict(self.block.copy())
         for nonce in range(nonce_range[0], nonce_range[1]):
             block_dict["nonce"] = nonce
             res = self.hash_block(block_dict)
@@ -74,6 +74,7 @@ class Miner():
                 pool.apply_async(self.mine_section,
                                  ((nonce, nonce+batch_size), queue))
                 nonce += batch_size
+                time.sleep(0.1)
             res = queue.get()
             taken = time.time()-start
         self.hash = res[0]

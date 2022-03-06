@@ -43,7 +43,7 @@ class Transaction():
             tran_data = self.tran_dict.copy()
             tran_data["nonce"] = nonce
             transaction_string = json.dumps(tran_data)
-            priv_key = RSA.import_key(priv_string)
+            priv_key = RSA.import_key(bytes.fromhex(priv_string))
             signer = PKCS115_SigScheme(priv_key)
             tran_hash = SHA256.new(transaction_string.encode("UTF-8"))
             signature = signer.sign(tran_hash)
@@ -61,7 +61,7 @@ class Transaction():
         tran_dict["nonce"] = self.nonce
         transaction_string = json.dumps(tran_dict)
         tran_hash = SHA256.new(transaction_string.encode("UTF-8"))
-        pub_key = RSA.import_key(self.sender)
+        pub_key = RSA.import_key(bytes.fromhex(self.sender))
         verifier = PKCS115_SigScheme(pub_key)
         try:
             verifier.verify(tran_hash, bytes.fromhex(self.signature))
