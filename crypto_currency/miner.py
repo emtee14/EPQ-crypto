@@ -27,7 +27,7 @@ class minerAgent():
         return proposed_block
 
     def mine_block(self, block: Block):
-        miner = Miner(dict(block), "0000", self.miner_addr)
+        miner = Miner(dict(block), "00000", self.miner_addr)
         self.log("miner.py", "INFO", "Started mining block")
         miner.mine_block()
         block.christen(miner.hash, miner.nonce, self.miner_addr)

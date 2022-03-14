@@ -93,7 +93,6 @@ class Node(threading.Thread):
                     self.outbound.append(client_thread)
                     self.log("node.py", "INFO",
                              f"New client connected {host}:{port} {client_thread.id}")
-                    return 3
                 else:
                     client_thread.stop()
             else:
