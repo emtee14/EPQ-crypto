@@ -12,7 +12,7 @@ class Connection(threading.Thread):
         self._stop_event = threading.Event()
         self.client = client  # True if connecting to another server
         self.sock = sock_obj
-        self.uid = None
+        self.id = None
         self.host = host
         self.port = port
         self.EOT_CHAR = 0x14.to_bytes(1, 'big')
@@ -21,7 +21,7 @@ class Connection(threading.Thread):
         self.log = log_func
 
     def __str__(self):
-        return f"{self.host}:{self.port} {self.uid[:8]}"
+        return f"{self.host}:{self.port} {self.id[:8]}"
 
     def send(self, data: dict):
         try:
@@ -29,7 +29,10 @@ class Connection(threading.Thread):
         except Exception:
             raise ValueError("Invalid dict unable to convert to string")
         msg_bytes = msg_str.encode("UTF-8") + self.EOT_CHAR
-        self.sock.sendall(msg_bytes)
+        try:
+            self.sock.sendall(msg_bytes)
+        except BrokenPipeError:
+            self.stop()
 
     def parse_message(self, msg: bytes) -> dict:
         json_str = msg.decode("UTF-8")
@@ -65,7 +68,7 @@ class Connection(threading.Thread):
                         msg_dict = self.parse_message(msg_bytes)
                         self.handle_msg(msg_dict)
                     except ValueError:
-                        self.log("Error handling or parsing message", "ERROR")
+                        self.log("connection.py", "INFO", "Error handling or parsing message")
                     eot_pos = buffer.find(self.EOT_CHAR)
             time.sleep(0.05)
         self.send({
@@ -79,12 +82,9 @@ class Connection(threading.Thread):
             self.sock.close()
         except OSError as e:
             if str(e) != "[Errno 57] Socket is not connected":
-                print(e)
                 raise e
         self.parent_proc.disconnected_node(self)
-        self.log(f"Client disconnected {self.host}:{self.port}",
-                 "INFO")
-        # loggin stuff
+        self.log("connection.py", "INFO", f"Client disconnected {self.host}:{self.port}")
 
     def ping_pong(self):
         if self.client:
@@ -109,7 +109,7 @@ class Connection(threading.Thread):
                     msg = self.parse_message(msg_bytes)
                     break
         self.parent_proc.connect_list += [(i[0], i[1]) for i in msg["data"]["clients"]]
-        self.uid = msg["data"]["id"]
+        self.id = msg["data"]["id"]
         self.act_host = msg["data"]["act_host"]
         if msg["type"] == "init_ping":
             self.send({

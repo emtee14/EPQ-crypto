@@ -1,9 +1,11 @@
 from p2p.node import Node
 from web_api import main
 from handler import Handler
+from datetime import datetime
 import atexit
 import os
 from blockchain.blockchain import Blockchain
+from miner import minerAgent
 
 
 class cryptoNode():
@@ -12,11 +14,23 @@ class cryptoNode():
                             ("crypto.morgan-thomas.co.uk", 14066),
                             ("crypto.morgan-thomas.co.uk", 14067)],
                  verbose=3, log_file=f"{os.getcwd()}/crypto.log",
-                 max_connections=0, blockchain="blockchain.db") -> None:
+                 max_connections=0, blockchain="blockchain.db", api=True,
+                 web_port=5555, miner=False, miner_addr=None) -> None:
         self.verbose = verbose
         self.log_file = log_file
+
+        self.web_api = api
+        self.web_port = web_port
+
+        self.miner = miner
+        self.miner_addr = miner_addr
+
+        if self.web_api and self.miner:
+            raise ValueError("Cannot have miner and web api enabled")
+
         self.node = Node(host, port, self.handler, bootstrap, max_connections,
                          self.log)
+
         self.blockchain = blockchain
         self.init_blockchain()
 
@@ -28,15 +42,22 @@ class cryptoNode():
         Handler(msg, self.blockchain, self.node, self.log)
 
     def start(self):
+        atexit.register(self.stop)
         self.node.start()
-        app = main.create_app(self.blockchain, self.node)
-        app.run(debug=True, port=5555)
+        if self.web_api:
+            app = main.create_app(self.blockchain, self.node, self.log)
+            app.run(port=self.web_port)
+        elif self.miner:
+            miner = minerAgent(self.blockchain, self.log,
+                               self.miner_addr, self.node)
+            miner.start()
 
     def stop(self):
         self.node.stop()
         self.node.join()
 
-    def log(self, log_msg):
+    def log(self, event_location, event_type, event):
+        log_msg = f"{str(datetime.utcnow())} || {event_type} @ {event_location} > {event}"
         if self.verbose > 1:
             with open(self.log_file, "a") as f:
                 f.write(log_msg + "\n")
@@ -46,5 +67,4 @@ class cryptoNode():
 
 if __name__ == "__main__":
     server_node = cryptoNode(bootstrap=[])
-    atexit.register(server_node.stop)
     server_node.start()

@@ -17,7 +17,7 @@ class Node(threading.Thread):
         self.port = port
         self.callback = callback
         self.max_connections = max_connections
-        self.log_func = log_func
+        self.log = log_func
 
         self.inbound = []
         self.outbound = []
@@ -29,10 +29,6 @@ class Node(threading.Thread):
 
         self.message_recv = 0
         self.message_send = 0
-
-    def log(self, event, event_type):
-        log_msg = f"{time.time()} | node.py | {event_type} - {event}"
-        self.log_func(log_msg)
 
     @property
     def total_nodes(self):
@@ -52,20 +48,21 @@ class Node(threading.Thread):
         self.sock.bind((self.host, self.port))
         self.sock.settimeout(5.0)
         self.sock.listen(10)
-        self.log("Initialised Socket", "INFO")
+        self.log("node.py", "INFO", "Initialised socket")
 
     def send_all(self, msg: Dict, exclude: List = []):
         connections = self.total_nodes
         for conn in connections:
-            if conn.uid not in exclude:
+            if conn.id not in exclude:
                 conn.send(msg)
-        self.log("Sent Message to All", "INFO")
+        self.log("node.py",  "INFO", f"Sent message to all {msg['type']}")
 
     def send(self, conn_id, msg):
         try:
             conn = self.total_nodes.index(conn_id)
         except ValueError:
-            self.log("Invalid node id or node disconnected", "ERROR")
+            self.log("node.py", "ERROR",
+                     "Invalid node id or node disconnected")
         conn.send(msg)
 
     def create_conn(self, sock, host, port, client):
@@ -85,23 +82,24 @@ class Node(threading.Thread):
 
                 client_thread = self.create_conn(sock, host, port, True)
                 client_thread.start()
-                while client_thread.uid is None:
+                while client_thread.id is None:
                     time.sleep(0.01)
                 connected = False
                 for connection in self.total_nodes:
-                    if connection.uid == client_thread.uid:
+                    if connection.id == client_thread.id:
                         connected = True
                         break
                 if connected is False:
                     self.outbound.append(client_thread)
-                    self.log(f"New Client Connected {host}:{port}", "INFO")
+                    self.log("node.py", "INFO",
+                             f"New client connected {host}:{port} {client_thread.id}")
                     return 3
                 else:
                     client_thread.stop()
             else:
-                self.log("Too many clients", "ERROR")
+                self.log("node.py", "ERROR", "Too many clients")
         except Exception as e:
-            print("Unable to connect", e)
+            self.log("node.py", "ERROR", "Unable to connect"+e)
             return 2
 
     def reconnect_nodes(self):
@@ -129,7 +127,8 @@ class Node(threading.Thread):
 
     def run(self):
         self.init_sock()
-        self.log("Node Starting", "INFO")
+        self.log("node.py", "INFO", "Node Starting")
+        counter = 0
         while not self.terminate_flag.is_set():
             try:
                 conn, addr = self.sock.accept()
@@ -137,27 +136,31 @@ class Node(threading.Thread):
                     conn_thread = self.create_conn(conn, addr[0],
                                                    addr[1], False)
                     conn_thread.start()
-                    while conn_thread.uid is None:
+                    while conn_thread.id is None:
                         time.sleep(0.01)
                     connected = False
                     for connection in self.total_nodes:
-                        if connection.uid == conn_thread.uid:
+                        if connection.id == conn_thread.id:
                             connected = True
                             break
                     if connected is False:
                         self.inbound.append(conn_thread)
-                        self.log(f"New Client Connected {addr[0]}:{addr[1]}",
-                                 "INFO")
+                        self.log("node.py", "INFO",
+                                 f"New client connected {addr[0]}:{addr[1]} {conn_thread.id}")
                     else:
                         conn_thread.stop()
                 else:
                     conn.close()
             except socket.timeout:
                 pass
+            counter += 1
+            if counter == 2:
+                counter = 0
+                self.send_all({"type": "heart_beat"})
             self.reconnect_nodes()
             time.sleep(0.01)
 
-        self.log("Shutting Down", "INFO")
+        self.log("node.py", "INFO", "Shutting Down")
         for thread in self.inbound:
             thread.stop()
         for thread in self.outbound:

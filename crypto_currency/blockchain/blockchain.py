@@ -137,10 +137,21 @@ class Blockchain():
                                      data, fee, signature, nonce, parent_block)
                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?);""",
                                      tran_tuple)
+                    signed_tran = {}
+                    keys = ["sender", "receiver", "value", "data", "fee",
+                            "signature", "nonce"]
+                    for idx, i in enumerate(tran_tuple[:-1]):
+                        signed_tran[keys[idx]] = i
+                    tran_str = json.dumps(signed_tran, sort_keys=True)
+                    self.cur.execute("""DELETE FROM mempool WHERE tran = ?""",
+                                     (tran_str,))
+
                 self.conn.commit()
-                self.log(f"New block added {block.hash}", "INFO")
+                self.log("blockchain.py", "INFO",
+                         f"New block added {block.hash}")
             else:
-                self.log("Invalid parent hash", "ERROR")
+                self.log("blockchain.py", "ERROR", "Invalid parent hash")
+                raise ValueError("Invalid Parent Hash")
 
     @property
     def prev_hash(self) -> str:
@@ -151,9 +162,12 @@ class Blockchain():
         """
         self.cur.execute("SELECT MAX(timestamp) as max_number FROM blocks;")
         prev_block = self.cur.fetchone()[0]
-        self.cur.execute("SELECT hash FROM blocks WHERE timestamp = ?",
-                         (prev_block,))
-        return self.cur.fetchone()[0]
+        if prev_block is not None:
+            self.cur.execute("SELECT hash FROM blocks WHERE timestamp = ?",
+                             (prev_block,))
+            return self.cur.fetchone()[0]
+        else:
+            return None
 
     def get_tran_nonce(self, addr: str) -> int:
         """Get the nonce value for transactions from specified account
@@ -177,17 +191,18 @@ class Blockchain():
         tran_strings = self.cur.fetchall()
         transactions = []
         for i in tran_strings:
-            transactions.append(json.loads(i))
+            transactions.append(json.loads(i[0]))
         return transactions
 
     def add_to_mempool(self, transaction: Dict):
-        tran_str = json.dumps(transaction)
+        tran_str = json.dumps(transaction, sort_keys=True)
         self.cur.execute("""SELECT * FROM mempool WHERE tran = ?""",
                          (tran_str,))
         if self.cur.fetchone() is None:
             self.cur.execute("""INSERT INTO mempool (tran) VALUES (?);""",
                              (tran_str,))
             self.conn.commit()
+            self.log("blockchain.py", "INFO", "Added transaction to mempool")
             return True
         return False
 

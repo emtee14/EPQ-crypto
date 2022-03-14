@@ -7,7 +7,7 @@ if __name__ == "__main__":
     from blockchain.blockchain import Blockchain
     from Crypto.PublicKey import RSA
 
-    blockchain = Blockchain(lambda x, y: print(x, y))
+    blockchain = Blockchain(lambda x, y, z: print(x, y, z))
     with open('./testing/priv-key1.pem', 'r') as f:
         sender = RSA.import_key(f.read())
     with open('./testing/priv-key2.pem', 'r') as f:
@@ -26,9 +26,11 @@ if __name__ == "__main__":
                            5*0.05)
     tran_obj.sign(sender.export_key("DER").hex(),
                   blockchain.get_tran_nonce(sender.public_key().exportKey("DER").hex()))
+    print(tran_obj.verify_signature())
     transaction = tuple(tran_obj)
 
     new_block = Block(blockchain.prev_hash, 112, [transaction])
+    print(dict(new_block))
     block_miner = Miner(dict(new_block), "f",
                         sender.public_key().exportKey("DER").hex())
     block_miner.mine_block()

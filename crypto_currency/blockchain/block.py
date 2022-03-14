@@ -77,7 +77,7 @@ class Block():
             if attr == "transactions":
                 trans = []
                 for i in getattr(self, attr):
-                    trans.append(i.tran_dict)
+                    trans.append(i.tran_dict())
                 yield (attr, trans)
             else:
                 yield (attr, getattr(self, attr))

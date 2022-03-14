@@ -16,14 +16,13 @@ class Transaction():
         self.data = data
         self.fee = fee
         self.required_value = fee + value
-        self.signed = True if signature and nonce is not None else False
+        self.signed = True if signature and nonce is not False else False
         self.signature = signature if self.signed else None
         self.nonce = nonce if self.signed else None
 
-    @property
-    def tran_dict(self, signed: bool = False) -> Dict:
+    def tran_dict(self, verify: bool = False) -> Dict:
         tran_props = ["sender", "receiver", "value", "data", "fee"]
-        if signed:
+        if not verify:
             tran_props += ["signature", "nonce"]
         tran_dict = {}
         for prop in tran_props:
@@ -40,9 +39,9 @@ class Transaction():
         :type nonce: int
         """
         if not self.signed:
-            tran_data = self.tran_dict.copy()
+            tran_data = self.tran_dict(verify=True).copy()
             tran_data["nonce"] = nonce
-            transaction_string = json.dumps(tran_data)
+            transaction_string = json.dumps(tran_data, sort_keys=True)
             priv_key = RSA.import_key(bytes.fromhex(priv_string))
             signer = PKCS115_SigScheme(priv_key)
             tran_hash = SHA256.new(transaction_string.encode("UTF-8"))
@@ -57,9 +56,9 @@ class Transaction():
         :return: Returns True if it is a valid signature and False if not
         :rtype: bool
         """
-        tran_dict = self.tran_dict.copy()
+        tran_dict = self.tran_dict(verify=True)
         tran_dict["nonce"] = self.nonce
-        transaction_string = json.dumps(tran_dict)
+        transaction_string = json.dumps(tran_dict, sort_keys=True)
         tran_hash = SHA256.new(transaction_string.encode("UTF-8"))
         pub_key = RSA.import_key(bytes.fromhex(self.sender))
         verifier = PKCS115_SigScheme(pub_key)

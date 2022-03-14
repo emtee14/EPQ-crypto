@@ -26,32 +26,45 @@ class Handler():
         tran_obj = Transaction(tran["sender"], tran["receiver"], tran["value"],
                                tran["data"], tran["fee"], tran["signature"],
                                tran["nonce"])
-        if tran_obj.verify_signature() is True:
+        tran_obj.verify_signature()
+        if tran_obj.valid is True:
             if self.blockchain.add_to_mempool(tran):
-                new_msg = self.msg
+                new_msg = self.msg.copy()
                 new_msg["node_id"] = self.node.id
-                self.node.send_all(new_msg)
+                self.node.send_all(new_msg, exclude=[self.msg["node_id"]])
             return True
         else:
+            self.log("handler.py", "ERORR", "Invalid transaction")
             return False  # Invalid transaction received
 
     def add_block(self):
         block = self.msg["data"]
+        transaction_dicts = self.msg["data"]["transactions"]
+        transactions = []
+        for tran in transaction_dicts:
+            tran_obj = Transaction(tran["sender"], tran["receiver"],
+                                   tran["value"], tran["data"], tran["fee"],
+                                   tran["signature"], tran["nonce"])
+            tran_obj.verify_signature()
+            transactions.append(tuple(tran_obj))
         block_obj = Block(block["parent_block"], block["timestamp"],
-                          [list(i.values()) for i in block["transactions"]],
+                          transactions,
                           block["hash"], block["nonce"], block["coinbase"])
         if block_obj.verify() is True:
-            self.blockchain.add_block(block_obj)
-            new_msg = self.msg
-            new_msg["node_id"] = self.node.id
-            self.node.send_all(new_msg)
-            return True
+            try:
+                self.blockchain.add_block(block_obj)
+                new_msg = self.msg.copy()
+                new_msg["node_id"] = self.node.id
+                self.node.send_all(new_msg, exclude=[self.msg["node_id"]])
+                return True
+            except ValueError:
+                return False
         else:
             return False  # Invalid Block
 
     def disconnect(self):
         for conn in self.node.total_nodes:
-            if conn.uid == self.msg["node_id"]:
+            if conn.id == self.msg["node_id"]:
                 conn.stop()
                 if conn in self.node.inbound:
                     self.node.inbound.remove(conn)
@@ -62,7 +75,9 @@ class Handler():
         match self.msg["type"]:
             case "add_transaction":
                 self.add_transaction()
+                self.log("handler.py", "INFO", "New transaction received")
             case "new_block":
                 self.add_block()
+                self.log("handler.py", "INFO", "New block received")
             case "disconnect":
                 self.disconnect()
