@@ -1,24 +1,32 @@
 # EPQ Cryptocurrency Artefact
 
+## Running the Programme
 
-## SQL Schema
+### 1. Install Python https://www.python.org/downloads/
+### 2. Create virtual enviroment
+ Unix/Linux
+```bash
+python3 -m venv .venv
+```
+ Windows
+```powershell
+python -m venv .venv
+```
+### 3. Activate virtual enviroment
 
-### Transactions
-
-- sender: str
-- receiver: str
-- value: int
-- data: str
-- fee: int
-- signature: str
-- nonce: int
-- parent_block: str
-
-### Blocks
-
-- hash: str
-- nonce: int
-- coinbase: str
-- parent_block: str
-- timestamp: int
-- transactions: List (Joined from `transactions` table)
+Unix/Linux
+```bash
+source ./.venv/bin/activate
+```
+ Windows
+```powershell
+.\.venv\Scripts\activate
+```
+### 4. Install packages
+```bash
+pip install -r requirements.txt
+```
+### 5. Run main.py
+```bash
+python ./crypto_currency/main.py
+```
