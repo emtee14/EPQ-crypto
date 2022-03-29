@@ -1,6 +1,7 @@
 import json
 import sqlite3
-from typing import Dict
+from statistics import mean
+from typing import Dict, List
 
 from Crypto.PublicKey import RSA
 
@@ -81,6 +82,14 @@ class Blockchain():
         return balance
 
     def get_transactions(self, public_key: str) -> Dict:
+        """Returns transactions from a specific account
+
+        :param public_key: The public key of the account to get
+                           transactions from
+        :type public_key: str
+        :return: Dictionary containing all the transactions
+        :rtype: Dict
+        """
         public_key = RSA.import_key(bytes.fromhex(public_key))
         key_str = public_key.export_key("DER").hex()
         self.cur.execute("""SELECT * FROM transactions
@@ -186,7 +195,12 @@ class Blockchain():
         return nonce
 
     @property
-    def mem_pool(self):
+    def mem_pool(self) -> List:
+        """Returns the transactions in the current mempool
+
+        :return: List of all transactions in dictionary form
+        :rtype: List
+        """
         self.cur.execute("""SELECT * FROM mempool""")
         tran_strings = self.cur.fetchall()
         transactions = []
@@ -194,7 +208,14 @@ class Blockchain():
             transactions.append(json.loads(i[0]))
         return transactions
 
-    def add_to_mempool(self, transaction: Dict):
+    def add_to_mempool(self, transaction: Dict) -> bool:
+        """Adds a transaction to mempool
+
+        :param transaction: Transaction sata
+        :type transaction: Dict
+        :return: Whether or not it succeeded
+        :rtype: bool
+        """
         tran_str = json.dumps(transaction, sort_keys=True)
         self.cur.execute("""SELECT * FROM mempool WHERE tran = ?""",
                          (tran_str,))
@@ -207,5 +228,50 @@ class Blockchain():
         return False
 
     def flush_mempool(self):
+        """Deletes all transactions from mempool
+        """
         self.cur.execute("DELETE FROM mempool;")
         self.conn.commit()
+
+    def get_current_diff(self) -> str:
+        """Get the current difficulty and return it
+
+        :return: _description_
+        :rtype: str
+        """
+        self.cur.execute("SELECT hash, timestamp FROM blocks LIMIT 4")
+        blocks = sorted(self.cur.fetchall(), key=lambda x: x[1])
+        if blocks is not None:
+            recent_block = blocks[-1]
+            for idx, i in enumerate(recent_block[0]):
+                if i != "0":
+                    count = idx
+                    break
+            return count * "0"
+        else:
+            return "0000"
+
+    def calculate_diff(self) -> str:
+        """Calculate the new difficulty for blocks and change it according
+           to the speed the blocks are mined
+
+        :return: The difficulty
+        :rtype: str
+        """
+        current_difficulty = self.get_current_diff()
+        self.cur.execute("""SELECT hash, timestamp
+                         FROM blocks
+                         ORDER BY timestamp DESC
+                        """)
+        blocks = sorted(self.cur.fetchall(), key=lambda x: x[1])
+        if len(blocks) % 4 == 0:
+            block_deltas = []
+            for idx, block in enumerate(blocks):
+                if idx != 0:
+                    block_deltas.append(block[1]-blocks[idx-1][1])
+            if mean(block_deltas) > 60:
+                return current_difficulty[:-1]
+            elif mean(block_deltas) < 60:
+                return current_difficulty + "0"
+        else:
+            return current_difficulty

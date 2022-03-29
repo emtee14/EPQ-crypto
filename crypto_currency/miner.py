@@ -27,7 +27,11 @@ class minerAgent():
         return proposed_block
 
     def mine_block(self, block: Block):
-        miner = Miner(dict(block), "00000", self.miner_addr)
+        if block.parent_block is not None:
+            difficulty = self.blockchain.calculate_diff()
+        else:
+            difficulty = "0000"
+        miner = Miner(dict(block), difficulty, self.miner_addr)
         self.log("miner.py", "INFO", "Started mining block")
         miner.mine_block()
         block.christen(miner.hash, miner.nonce, self.miner_addr)

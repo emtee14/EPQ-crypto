@@ -10,7 +10,6 @@ class Block():
     def __init__(self, parent_block: str, timestamp: int, transactions: List,
                  block_hash: str = False, nonce: int = False,
                  coinbase: str = False) -> None:
-        self.henry = "Smells"
         self.parent_block = parent_block
         self.timestamp = timestamp
         self.transactions = [Transaction(*x[:5], signature=x[5],
