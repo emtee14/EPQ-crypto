@@ -39,7 +39,7 @@ python ./crypto_currency/main.py
 - log_file e.g. /var/log/crypto.log
 - max_connections e.g. 100, 4, 0
 - blockchain e.g. blockchain.db
-- api e.g. True or False (only be true if miner is False vice versa)
+- api e.g. True or False (only be True if miner is False vice versa)
 - web_port e.g. 4793, 8080
 - miner e.g. True or False
 - miner_addr e.g. address for coinbase
