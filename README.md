@@ -38,7 +38,7 @@ python ./crypto_currency/main.py
 - verbose e.g. 1, 2 or 3
 - log_file e.g. /var/log/crypto.log
 - max_connections e.g. 100, 4, 0
-- blockchan e.g. blockchain.db
+- blockchain e.g. blockchain.db
 - api e.g. True or False (only be true if miner is False vice versa)
 - web_port e.g. 4793, 8080
 - miner e.g. True or False
