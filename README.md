@@ -3,6 +3,7 @@
 ## Running the Programme
 
 ### 1. Install Python https://www.python.org/downloads/
+Version 3.10 is required
 ### 2. Create virtual enviroment
  Unix/Linux
 ```bash
